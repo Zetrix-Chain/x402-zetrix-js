@@ -1,0 +1,40 @@
+{
+  "_comment": "MCP server configuration for Claude Desktop and Claude Code. Copy the relevant section into your config file.",
+
+  "claude_desktop": {
+    "_path_macos": "~/Library/Application Support/Claude/claude_desktop_config.json",
+    "_path_windows": "%APPDATA%\\Claude\\claude_desktop_config.json",
+    "mcpServers": {
+      "x402-zetrix": {
+        "command": "node",
+        "args": ["/absolute/path/to/packages/mcp/dist/index.js"],
+        "env": {
+          "X402_PRIVATE_KEY": "your-ed25519-private-key",
+          "X402_ADDRESS": "Z...",
+          "X402_NETWORK": "zetrix:testnet",
+          "X402_NODE_HOST": "",
+          "X402_NODE_PORT": "",
+          "X402_MAX_AMOUNT_PER_REQUEST": ""
+        }
+      }
+    }
+  },
+
+  "claude_code": {
+    "_path": "~/.claude/settings.json",
+    "mcpServers": {
+      "x402-zetrix": {
+        "command": "node",
+        "args": ["/absolute/path/to/packages/mcp/dist/index.js"],
+        "env": {
+          "X402_PRIVATE_KEY": "your-ed25519-private-key",
+          "X402_ADDRESS": "Z...",
+          "X402_NETWORK": "zetrix:testnet",
+          "X402_NODE_HOST": "",
+          "X402_NODE_PORT": "",
+          "X402_MAX_AMOUNT_PER_REQUEST": ""
+        }
+      }
+    }
+  }
+}

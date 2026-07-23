@@ -1,0 +1,53 @@
+{
+  "name": "x402-zetrix-mcp",
+  "version": "0.1.0",
+  "description": "x402 MCP tool server for Zetrix — AI agent payment tools (fetch_with_payment, get_wallet_info, check_payment_capability)",
+  "author": "MyEG Services Berhad",
+  "license": "MIT",
+  "homepage": "https://github.com/Zetrix-Chain/x402-zetrix-js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Zetrix-Chain/x402-zetrix-js.git",
+    "directory": "packages/mcp"
+  },
+  "engines": { "node": ">=18" },
+  "files": ["dist", "README.md"],
+  "main": "dist/lib.js",
+  "types": "dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/lib.js",
+      "import": "./dist/lib.js",
+      "types": "./dist/lib.d.ts"
+    },
+    "./server": "./dist/index.js"
+  },
+  "bin": {
+    "x402-zetrix-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc && pnpm bundle",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --target=node18 --external:zetrix-sdk-nodejs --outfile=dist/server-bundle.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "echo 'lint not configured yet'"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "x402-zetrix-client": "workspace:*",
+    "zetrix-sdk-nodejs": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "esbuild": "^0.28.1",
+    "vitest": "^1.6.0"
+  },
+  "keywords": [
+    "x402",
+    "zetrix",
+    "mcp",
+    "ai-agent",
+    "payment"
+  ]
+}

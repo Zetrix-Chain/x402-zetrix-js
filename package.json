@@ -1,0 +1,21 @@
+{
+  "name": "x402-zetrix-js",
+  "private": true,
+  "version": "0.1.0",
+  "description": "x402 payment protocol SDK for Zetrix blockchain (NodeJS/TypeScript)",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:coverage": "pnpm -r test:coverage",
+    "lint": "pnpm -r lint"
+  },
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=8"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^1.6.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

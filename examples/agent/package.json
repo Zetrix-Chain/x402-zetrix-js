@@ -1,0 +1,21 @@
+{
+  "name": "@x402-zetrix/example-agent",
+  "version": "0.1.0",
+  "description": "Example AI agent using Claude + x402-zetrix tools to access paid APIs automatically",
+  "private": true,
+  "scripts": {
+    "dev": "ts-node src/agent.ts",
+    "build": "tsc",
+    "start": "node dist/agent.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "x402-zetrix-client": "workspace:*",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}

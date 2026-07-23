@@ -1,0 +1,33 @@
+{
+  "name": "x402-zetrix-client",
+  "version": "0.1.0",
+  "description": "x402 client SDK for Zetrix — parse 402, sign, retry",
+  "author": "MyEG Services Berhad",
+  "license": "MIT",
+  "homepage": "https://github.com/Zetrix-Chain/x402-zetrix-js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Zetrix-Chain/x402-zetrix-js.git",
+    "directory": "packages/client"
+  },
+  "engines": { "node": ">=18" },
+  "files": ["dist", "README.md"],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "echo 'lint not configured yet'"
+  },
+  "keywords": ["x402", "zetrix", "payment", "blockchain"],
+  "dependencies": {
+    "zetrix-sdk-nodejs": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "vitest": "^1.6.0",
+    "zetrix-encryption-nodejs": "^1.1.0"
+  }
+}
