@@ -166,7 +166,15 @@ This track wires up Claude (or any MCP-compatible LLM) so it can call x402-prote
 
 **Option A — Published package (simplest, after npm publish):**
 
-No build step needed. Skip to Step 2 and use `npx x402-zetrix-mcp` as the command.
+No build step needed. Run it directly with `npx x402-zetrix-mcp`, or install it first:
+
+```bash
+npm install -g x402-zetrix-mcp
+# or, as a project dependency:
+npm install x402-zetrix-mcp
+```
+
+Skip to Step 2 and use `npx x402-zetrix-mcp` (or `x402-zetrix-mcp`, if installed) as the command.
 
 **Option B — Local build (development):**
 

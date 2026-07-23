@@ -99,12 +99,22 @@ Client                    Resource Server           Facilitator
   │                              │                       │
   │──── GET /api/data ──────────>│                       │
   │     X-Payment: <blob>        │                       │
+  │                              │ PayloadVerifier checks │
+  │                              │ payTo/amount/asset     │
+  │                              │ locally —    │
+  │                              │ mismatch → 402 here,   │
+  │                              │ Facilitator never called│
   │                              │──── POST /verify ────>│
   │                              │<─── isValid:true ─────│
   │                              │                       │
   │<─── 200 + data ──────────────│                       │
   │                              │──── POST /settle ────>│ (async)
 ```
+
+The local `PayloadVerifier` check is a defense-in-depth gate: it decodes the submitted
+blob and compares its `payTo`/`amount`/asset against the middleware's own config, before
+the external Facilitator's `/verify` is ever called — so a compromised or buggy
+Facilitator can never override a locally-detected mismatch.
 
 ## Ecosystem
 

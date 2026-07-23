@@ -7,6 +7,22 @@ Three tools exposed:
 - **`get_wallet_info`** — return configured wallet address and network
 - **`check_payment_capability`** — query ZTX balance from Zetrix RPC
 
+## Installation
+
+Install from npm:
+
+```bash
+npm install -g x402-zetrix-mcp
+```
+
+Or as a project dependency (without a global install):
+
+```bash
+npm install x402-zetrix-mcp
+```
+
+Either way, the package exposes an `x402-zetrix-mcp` binary that starts the MCP server over stdio — this is what an MCP client (Claude or otherwise) launches. A global install puts `x402-zetrix-mcp` directly on your `PATH`; a local install runs the same binary via `npx x402-zetrix-mcp` from the project directory.
+
 ## Quick start (Claude Code / Claude Desktop)
 
 **Option A — Published package (recommended):**

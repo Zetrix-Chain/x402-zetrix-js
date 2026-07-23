@@ -10,6 +10,14 @@ MCP (Model Context Protocol) server that exposes x402 Zetrix payment tools to AI
 npx x402-zetrix-mcp
 ```
 
+`npx` downloads and runs the package on demand — no separate install step required. To install it explicitly instead (e.g. to put `x402-zetrix-mcp` on your `PATH`):
+
+```bash
+npm install -g x402-zetrix-mcp
+# or, as a project dependency:
+npm install x402-zetrix-mcp
+```
+
 **From a local build (development):**
 
 ```bash

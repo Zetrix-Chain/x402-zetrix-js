@@ -34,6 +34,7 @@ Edit `.env` and fill in all the required values.
 | `X402_FACILITATOR_API_KEY` | No | `x-api-key` header for Facilitator API |
 | `X402_FACILITATOR_BEARER_TOKEN` | No | `Authorization: Bearer` token for Facilitator API |
 | `X402_PREPARE_ENDPOINT` | No | **Public** proxy URL for `/prepare` (gasModel:facilitator only) |
+| `X402_ZTP20_CONTRACT` | No | ZTP20 contract address — if set, enables `GET /api/token-data` priced in this token (requires `X402_PREPARE_ENDPOINT`) |
 
 ## Run
 
@@ -53,6 +54,7 @@ pnpm start
 | `GET /health` | No | Returns `{ status: "ok" }` |
 | `GET /api/data` | Yes — x402 payment | Returns a small JSON payload |
 | `GET /api/premium-content` | Yes — x402 payment (10×) | Returns premium content at a higher price |
+| `GET /api/token-data` | Yes — x402 payment (ZTP20) | Only enabled when `X402_ZTP20_CONTRACT` is set; returns a small JSON payload paid for in a ZTP20 token instead of native ZTX |
 
 ## Test with curl
 

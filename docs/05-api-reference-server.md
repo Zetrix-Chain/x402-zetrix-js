@@ -66,6 +66,67 @@ The `facilitatorUrl` is never sent to clients. The `prepareEndpoint` is advertis
 
 ---
 
+## `PayloadVerifier`
+
+Local, in-process defense-in-depth check. `paymentMiddleware` calls
+`PayloadVerifier.verifyRequirements()` right after the `validBefore` expiry check and
+**before** `FacilitatorVerifyClient.verify()` — it decodes the submitted blob and compares
+`payTo`/`amount`/asset against the middleware's own `config`. A compromised or buggy
+Facilitator can never override a locally-detected mismatch, and an obviously-wrong
+payload is rejected without spending a network round trip.
+
+```typescript
+import { PayloadVerifier } from 'x402-zetrix-server'
+
+const result = PayloadVerifier.verifyRequirements(xPaymentPayload, config)
+// { isValid: true } | { isValid: false, errorCode: string, errorMsg: string }
+```
+
+### `PayloadVerifier.decode(blobHex)`
+
+Decodes a hex-encoded Zetrix transaction blob and extracts `payTo`/`amount`/(ZTP20 only)
+`tokenContract`. Ports the same decode logic `packages/client`'s `BlobDecoder` uses.
+Throws (never returns a Result) if the blob is empty, non-hex, has no operations, or its
+first operation is not a `payCoin`.
+
+### `PayloadVerifier.verifyRequirements(payload, config)`
+
+Never throws — any `decode()` failure is caught internally and converted to a Result.
+
+```typescript
+interface PayloadDecodeResult {
+  payTo:          string
+  amount:         string
+  tokenContract?: string   // present only for ZTP20 (contract-invoke) payloads; absent for native ZTX
+}
+
+interface PayloadVerifyResult {
+  isValid:    boolean
+  errorCode?: string   // present when isValid:false — see table below
+  errorMsg?:  string   // present when isValid:false — human-readable detail
+}
+```
+
+Checks, in order — the first mismatch wins:
+
+1. `decoded.payTo !== config.payTo`
+2. `decoded.amount !== config.amount`
+3. Asset/token-contract: if `config.asset === 'ZTX'`, a **ZTP20-shaped** blob (one with a
+   `tokenContract`) is rejected even if `payTo`/`amount` match — this closes a gap found in
+   this ticket's whole-branch review, where a native-ZTX config previously skipped the
+   contract check entirely. Otherwise, `decoded.tokenContract` must equal `config.asset`.
+
+| `errorCode` | Meaning |
+|---|---|
+| `'payload_requirements_mismatch'` | Decoded `payTo`, `amount`, or asset/token-contract doesn't match `config`. |
+| `'payload_decode_failed'` | The blob (or its ZTP20 `input`) failed to decode. |
+
+> **Type note:** this `errorCode` is always a **string**. The Facilitator-sourced
+> `errorCode` used elsewhere in the 402 response (e.g. `blob_expired` → `460807`) is a
+> **number**. Don't assume a fixed type across all 402 responses from this middleware.
+
+---
+
 ## Facilitator Clients
 
 These are used internally by `paymentMiddleware`. Exposed for testing and advanced use.

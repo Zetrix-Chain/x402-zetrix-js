@@ -20,6 +20,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import express from 'express'
 import request from 'supertest'
+import { BlobBuilder } from 'x402-zetrix-client'
 
 // ---------------------------------------------------------------------------
 // Mock Facilitator clients before importing middleware
@@ -61,6 +62,21 @@ const TEST_CONFIG = {
   gasModel: 'facilitator' as const,
 }
 
+/**
+ * A matching blob — decodes (via PayloadVerifier) to payTo/amount/tokenContract that
+ * exactly equal TEST_CONFIG, so this fixture reaches the Facilitator-call stage in every
+ * test below(when the blob content was never locally inspected).
+ */
+const MATCHING_BLOB = BlobBuilder.build({
+  asset:         TEST_CONFIG.asset,
+  payTo:         TEST_CONFIG.payTo,
+  amount:        TEST_CONFIG.amount,
+  clientAddress: TEST_CONFIG.payTo,
+  nonce:         '1',
+  gasPrice:      '1000',
+  feeLimit:      '100000',
+}).blob
+
 /** A valid-looking X-Payment header (base64-encoded JSON) */
 const SAMPLE_PAYLOAD = {
   x402Version: 2,
@@ -69,7 +85,7 @@ const SAMPLE_PAYLOAD = {
   payload: {
     type: 'facilitator_prepared',
     blobId: 'BLOB-test1234abcd',
-    blob: '0a3cdeadbeef',
+    blob: MATCHING_BLOB,
     hash: 'hashvalue123',
     clientSignature: { signBlob: 'sigvalue', publicKey: 'pubkeyvalue' },
     validBefore: Math.floor(Date.now() / 1000) + 3600,
@@ -503,6 +519,91 @@ describe('paymentMiddleware', () => {
         result: { status: 'SUBMITTED', txHash: '' },
       })
       // SAMPLE_PAYLOAD already has validBefore = now + 3600
+      const resp = await request(app)
+        .get('/resource')
+        .set('X-Payment', X_PAYMENT_HEADER)
+      expect(resp.status).toBe(200)
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // 12. Local PayloadVerifier gate — requirements mismatch → 402 before Facilitator
+  // -------------------------------------------------------------------------
+  describe('local payload requirements mismatch', () => {
+    beforeEach(() => {
+      // If the gate did not exist, this mock would let the request through with 200 —
+      // making a RED failure here unambiguous (expected 402, got 200).
+      vi.mocked(FacilitatorVerifyClient.verify).mockResolvedValue({ isValid: true })
+    })
+
+    function buildMismatchedHeader(): string {
+      const mismatchedBlob = BlobBuilder.build({
+        asset:         TEST_CONFIG.asset,
+        payTo:         TEST_CONFIG.payTo,
+        amount:        '9999999', // does not match TEST_CONFIG.amount ('1000000')
+        clientAddress: TEST_CONFIG.payTo,
+        nonce:         '1',
+        gasPrice:      '1000',
+        feeLimit:      '100000',
+      }).blob
+      const mismatchedPayload = {
+        ...SAMPLE_PAYLOAD,
+        payload: { ...SAMPLE_PAYLOAD.payload, blob: mismatchedBlob },
+      }
+      return Buffer.from(JSON.stringify(mismatchedPayload)).toString('base64')
+    }
+
+    it('returns HTTP 402 with error: payment_invalid', async () => {
+      const resp = await request(app)
+        .get('/resource')
+        .set('X-Payment', buildMismatchedHeader())
+      expect(resp.status).toBe(402)
+      expect(resp.body.error).toBe('payment_invalid')
+    })
+
+    it('response body has errorCode: payload_requirements_mismatch', async () => {
+      const resp = await request(app)
+        .get('/resource')
+        .set('X-Payment', buildMismatchedHeader())
+      expect(resp.body.errorCode).toBe('payload_requirements_mismatch')
+    })
+
+    it('response body has an errorMsg describing the mismatch', async () => {
+      const resp = await request(app)
+        .get('/resource')
+        .set('X-Payment', buildMismatchedHeader())
+      expect(typeof resp.body.errorMsg).toBe('string')
+      expect(resp.body.errorMsg.length).toBeGreaterThan(0)
+    })
+
+    it('does not call FacilitatorVerifyClient.verify', async () => {
+      await request(app)
+        .get('/resource')
+        .set('X-Payment', buildMismatchedHeader())
+      expect(FacilitatorVerifyClient.verify).not.toHaveBeenCalled()
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // 13. Local PayloadVerifier gate — requirements match → proceeds to Facilitator
+  // -------------------------------------------------------------------------
+  describe('local payload requirements match — proceeds to Facilitator', () => {
+    beforeEach(() => {
+      vi.mocked(FacilitatorVerifyClient.verify).mockResolvedValue({ isValid: true })
+      vi.mocked(FacilitatorSettleClient.settle).mockResolvedValue({
+        httpStatus: 200,
+        result: { status: 'SUBMITTED', txHash: '' },
+      })
+    })
+
+    it('calls FacilitatorVerifyClient.verify when the local blob matches config', async () => {
+      await request(app)
+        .get('/resource')
+        .set('X-Payment', X_PAYMENT_HEADER)
+      expect(FacilitatorVerifyClient.verify).toHaveBeenCalledOnce()
+    })
+
+    it('returns HTTP 200 from the route handler', async () => {
       const resp = await request(app)
         .get('/resource')
         .set('X-Payment', X_PAYMENT_HEADER)

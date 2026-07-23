@@ -14,6 +14,7 @@ import { FacilitatorSettleClient } from './facilitator/settle-client'
 import { FacilitatorSettleStatusClient } from './facilitator/settle-status-client'
 import { XPaymentParser } from './x-payment-parser'
 import { PaymentResponseBuilder } from './payment-response-builder'
+import { PayloadVerifier } from './payload-verifier'
 
 /**
  * Protect an Express route with x402 payment.
@@ -83,6 +84,20 @@ export function paymentMiddleware(config: PaymentMiddlewareConfig) {
         error: 'payment_invalid',
         errorCode: 460807,
         errorMsg: 'blob_expired',
+      })
+      return
+    }
+
+    // -----------------------------------------------------------------------
+    // Local payload verification — defense-in-depth before Facilitator
+    // -----------------------------------------------------------------------
+    const localResult = PayloadVerifier.verifyRequirements(payload.payload, config)
+    if (!localResult.isValid) {
+      res.status(402).json({
+        x402Version: 2,
+        error: 'payment_invalid',
+        errorCode: localResult.errorCode,
+        errorMsg: localResult.errorMsg,
       })
       return
     }

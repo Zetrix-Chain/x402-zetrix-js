@@ -1,5 +1,5 @@
 /**
- * Integration test: x402-zetrix-js server + client end-to-end on testnet
+ *Integration test: x402-zetrix-js server + client end-to-end on testnet
  *
  * Requires a funded testnet wallet and a running Facilitator. Skip automatically
  * when wallet env vars are absent so CI does not block without credentials.
@@ -26,7 +26,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { createResourceServer, type ResourceServerHandle } from './resource-server'
-import { createX402Fetch, InsufficientBalanceError } from 'x402-zetrix-client'
+import { createX402Fetch, InsufficientBalanceError, PaymentEngine } from 'x402-zetrix-client'
 import { createMcpTools } from 'x402-zetrix-mcp'
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -532,7 +532,7 @@ describe('x402 facilitator-sponsored integration', () => {
 //
 // Verifies that createMcpTools.fetch_with_payment works end-to-end against a
 // real resource server — automatic 402 detection, payment, and retry.
-// Uses ZTX + gasModel:client (same prerequisites as the mainsuite).
+// Uses ZTX + gasModel:client (same prerequisites as the main suite).
 // =============================================================================
 
 const SKIP_MCP = SKIP
@@ -647,6 +647,176 @@ describe('x402 MCP tools integration', () => {
     expect(result.capable).toBe(true)
     expect(BigInt(result.balance)).toBeGreaterThan(0n)
   })
+})
+
+// =============================================================================
+// Local payload verification
+//
+// Verifies the resource server's local PayloadVerifier rejects a payload whose
+// payTo/asset don't match the server's configured requirements — BEFORE the
+// Facilitator's /verify is ever called. PaymentEngine.pay() faithfully signs
+// whatever PayRequest it's given (the client has no way to know the server's
+// real requirements up front) — the mismatch is only caught server-side, which
+// is exactly the defense-in-depth gate this ticket adds. A Facilitator-sourced
+// rejection always carries a numeric errorCode (e.g. 461405); only our local
+// checks return the string 'payload_requirements_mismatch' — so asserting on
+// that exact string proves the LOCAL check fired, not the Facilitator.
+// =============================================================================
+
+// A valid-format Zetrix address that is neither the payer (X402_ADDRESS) nor the
+// merchant (X402_MERCHANT_ADDRESS) — used only as a deliberately-wrong payTo below.
+// It receives nothing in this suite (the payment is rejected before settlement).
+const PAYLOAD_VERIFY_WRONG_PAY_TO = 'ZTX3cGfn9aKqzRboLvDvTS5yqmTefbGzv8DmJ'
+
+// Small amount so AC2's legitimately-signed ZTP20 payment stays within the
+// payer wallet's actual token balance (a few thousand units) while still
+// exactly matching what the ZTX server below requires — isolating the asset
+// mismatch as the only difference between the two payloads.
+const PAYLOAD_VERIFY_AMOUNT = '100'
+
+describe('x402 local payload verification', () => {
+  let payloadVerifyServer: ResourceServerHandle
+  let payloadVerifyBaseUrl: string
+
+  beforeAll(async () => {
+    if (SKIP) return
+    payloadVerifyServer = await createResourceServer({
+      amount:                 PAYLOAD_VERIFY_AMOUNT,
+      asset:                  'ZTX',
+      payTo:                  process.env.X402_MERCHANT_ADDRESS ?? process.env.X402_ADDRESS!,
+      network:                process.env.X402_NETWORK!,
+      facilitatorUrl:         process.env.X402_FACILITATOR_URL!,
+      facilitatorApiKey:      process.env.X402_FACILITATOR_API_KEY,
+      facilitatorBearerToken: process.env.X402_FACILITATOR_BEARER_TOKEN,
+      gasModel:               'client',
+    })
+    payloadVerifyBaseUrl = `http://localhost:${payloadVerifyServer.port}`
+  })
+
+  afterAll(async () => {
+    if (payloadVerifyServer) await payloadVerifyServer.close()
+  })
+
+  // -------------------------------------------------------------------------
+  // AC1 — payTo mismatch rejected locally with 402, before Facilitator
+  // -------------------------------------------------------------------------
+  it.skipIf(SKIP)(
+    'rejects a payTo mismatch locally with errorCode payload_requirements_mismatch (AC1)',
+    async () => {
+      const wallet = {
+        privateKey: process.env.X402_PRIVATE_KEY!,
+        address:    process.env.X402_ADDRESS!,
+        network:    process.env.X402_NETWORK!,
+      }
+      const node = {
+        host: process.env.X402_NODE_HOST ?? 'test-node.zetrix.com',
+        port: process.env.X402_NODE_PORT ?? '',
+      }
+      // Sign a genuine ZTX payment to a DIFFERENT address than the server requires.
+      const xPayment = await PaymentEngine.pay(
+        {
+          scheme: 'exact',
+          network: process.env.X402_NETWORK!,
+          asset: 'ZTX',
+          payTo: PAYLOAD_VERIFY_WRONG_PAY_TO,
+          maxAmountRequired: PAYLOAD_VERIFY_AMOUNT,
+          extra: { gasModel: 'client' },
+        },
+        wallet,
+        node,
+      )
+
+      const res  = await fetch(`${payloadVerifyBaseUrl}/api/data`, { headers: { 'x-payment': xPayment } })
+      const body = await res.json() as { errorCode?: string; errorMsg?: string }
+      expect(res.status).toBe(402)
+      expect(body.errorCode).toBe('payload_requirements_mismatch')
+    },
+    30000,
+  )
+
+  // -------------------------------------------------------------------------
+  // AC2 — a native-ZTX-priced resource rejects a legitimately-signed
+  // ZTP20 blob whose payTo/amount match but whose asset (token contract)
+  // doesn't — the exact gap found and fixed in the whole-branch review.
+  // -------------------------------------------------------------------------
+  it.skipIf(SKIP || !ZTP20_CONFIGURED)(
+    'rejects a ZTP20-shaped blob for a native-ZTX-priced resource (AC2)',
+    async () => {
+      const wallet = {
+        privateKey: process.env.X402_PRIVATE_KEY!,
+        address:    process.env.X402_ADDRESS!,
+        network:    process.env.X402_NETWORK!,
+      }
+      const node = {
+        host: process.env.X402_NODE_HOST ?? 'test-node.zetrix.com',
+        port: process.env.X402_NODE_PORT ?? '',
+      }
+      const merchant = process.env.X402_MERCHANT_ADDRESS ?? process.env.X402_ADDRESS!
+
+      // Legitimately sign a ZTP20 payment to the SAME merchant/amount the ZTX
+      // server requires — only the asset (token contract vs "ZTX") differs.
+      const xPayment = await PaymentEngine.pay(
+        {
+          scheme: 'exact',
+          network: process.env.X402_NETWORK!,
+          asset: process.env.X402_ZTP20_CONTRACT!,
+          payTo: merchant,
+          maxAmountRequired: PAYLOAD_VERIFY_AMOUNT,
+          extra: { gasModel: 'facilitator', prepareEndpoint: process.env.X402_PREPARE_ENDPOINT },
+        },
+        wallet,
+        node,
+      )
+
+      const res  = await fetch(`${payloadVerifyBaseUrl}/api/data`, { headers: { 'x-payment': xPayment } })
+      const body = await res.json() as { errorCode?: string; errorMsg?: string }
+      expect(res.status).toBe(402)
+      expect(body.errorCode).toBe('payload_requirements_mismatch')
+    },
+    30000,
+  )
+
+  // -------------------------------------------------------------------------
+  // AC3 — amount mismatch rejected locally with 402, before Facilitator.
+  // Same payTo/asset as the server requires; only the signed amount differs.
+  // -------------------------------------------------------------------------
+  it.skipIf(SKIP)(
+    'rejects an amount mismatch locally with errorCode payload_requirements_mismatch (AC3)',
+    async () => {
+      const wallet = {
+        privateKey: process.env.X402_PRIVATE_KEY!,
+        address:    process.env.X402_ADDRESS!,
+        network:    process.env.X402_NETWORK!,
+      }
+      const node = {
+        host: process.env.X402_NODE_HOST ?? 'test-node.zetrix.com',
+        port: process.env.X402_NODE_PORT ?? '',
+      }
+      const merchant = process.env.X402_MERCHANT_ADDRESS ?? process.env.X402_ADDRESS!
+
+      // Sign a genuine ZTX payment to the correct merchant, but for a DIFFERENT
+      // amount than the server requires (PAYLOAD_VERIFY_AMOUNT).
+      const wrongAmount = String(BigInt(PAYLOAD_VERIFY_AMOUNT) + 1n)
+      const xPayment = await PaymentEngine.pay(
+        {
+          scheme: 'exact',
+          network: process.env.X402_NETWORK!,
+          asset: 'ZTX',
+          payTo: merchant,
+          maxAmountRequired: wrongAmount,
+          extra: { gasModel: 'client' },
+        },
+        wallet,
+        node,
+      )
+
+      const res  = await fetch(`${payloadVerifyBaseUrl}/api/data`, { headers: { 'x-payment': xPayment } })
+      const body = await res.json() as { errorCode?: string; errorMsg?: string }
+      expect(res.status).toBe(402)
+      expect(body.errorCode).toBe('payload_requirements_mismatch')
+    },
+    30000,
+  )
 })
 
 // =============================================================================
@@ -790,11 +960,11 @@ describe('x402 MCP tools integration HSM mode', () => {
       const text = await probe.text()
       if (!probe.ok && text.includes('Just a moment')) {
         hsmApiReachable = false
-        console.warn('[-MCP] HSM API unreachable from this network (Cloudflare challenge). AC4-HSM and AC5-HSM will skip. Run from a whitelisted network.')
+        console.warn('HSM API unreachable from this network (Cloudflare challenge). AC4-HSM and AC5-HSM will skip. Run from a whitelisted network.')
       }
     } catch {
       hsmApiReachable = false
-      console.warn('[-MCP] HSM API probe failed (network error). AC4-HSM and AC5-HSM will skip.')
+      console.warn('HSM API probe failed (network error). AC4-HSM and AC5-HSM will skip.')
     }
 
     // Wait for nonce to stabilize before starting — previous suites may have

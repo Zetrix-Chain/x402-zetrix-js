@@ -1,6 +1,6 @@
 {
   "name": "x402-zetrix-mcp",
-  "version": "0.1.0",
+  "version": "0.2.5",
   "description": "x402 MCP tool server for Zetrix — AI agent payment tools (fetch_with_payment, get_wallet_info, check_payment_capability)",
   "author": "MyEG Services Berhad",
   "license": "MIT",

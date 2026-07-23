@@ -141,6 +141,13 @@ importers:
         version: 1.6.1(@types/node@20.19.41)
 
   packages/server:
+    dependencies:
+      protobufjs:
+        specifier: ^6.8.8
+        version: 6.11.6
+      zetrix-sdk-nodejs:
+        specifier: ^1.0.3
+        version: 1.0.3
     devDependencies:
       '@types/express':
         specifier: ^4.17.0
@@ -166,6 +173,9 @@ importers:
       vitest:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.41)
+      x402-zetrix-client:
+        specifier: workspace:*
+        version: link:../client
 
 packages:
 

@@ -1,6 +1,6 @@
 {
   "name": "x402-zetrix-server",
-  "version": "0.1.0",
+  "version": "0.2.4",
   "description": "x402 server middleware for Express — protect routes with HTTP 402 payment",
   "author": "MyEG Services Berhad",
   "license": "MIT",
@@ -20,6 +20,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
+  "dependencies": {
+    "protobufjs": "^6.8.8",
+    "zetrix-sdk-nodejs": "^1.0.3"
+  },
   "peerDependencies": {
     "express": "^4 || ^5"
   },
@@ -31,6 +35,7 @@
     "express": "^4.18.0",
     "supertest": "^6.3.0",
     "typescript": "^5.0.0",
-    "vitest": "^1.6.0"
+    "vitest": "^1.6.0",
+    "x402-zetrix-client": "workspace:*"
   }
 }
