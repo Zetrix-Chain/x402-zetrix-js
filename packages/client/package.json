@@ -1,6 +1,6 @@
 {
   "name": "x402-zetrix-client",
-  "version": "0.2.2",
+  "version": "0.2.4",
   "description": "x402 client SDK for Zetrix — parse 402, sign, retry",
   "author": "MyEG Services Berhad",
   "license": "MIT",

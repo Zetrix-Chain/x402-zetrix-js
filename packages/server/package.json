@@ -1,6 +1,6 @@
 {
   "name": "x402-zetrix-server",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "x402 server middleware for Express — protect routes with HTTP 402 payment",
   "author": "MyEG Services Berhad",
   "license": "MIT",
